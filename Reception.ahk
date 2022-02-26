@@ -7,39 +7,20 @@ FileEncoding, UTF-8
 GuiWidth := "w330"
 Tabwidth := "w310"
 AHK_tittle := "Tiếp nhận"
-
+Global g_Resolution := A_ScreenWidth . "x" . A_ScreenHeight
 ;Gắn các giá trị theo tỷ lệ màn hình sử dụng
 ;Màn hình tỷ lệ 720p
-If (A_ScreenWidth = 1366) AND (A_ScreenHeight = 768) {
-	xHIS_PK := 120 , yHIS_PK := 429
-	xHIS_PLV := 1020 , yHIS_PLV := 36
-	xHIS_Ver := 1275 , yHIS_Ver := 722
-	xHIS_MaBN := 124 , yHIS_MaBN := 120
-	xHIS_MuaSo := 940 , yHIS_MuaSo := 430
-	xHIS_BNUT := 1064 , yHIS_BNUT := 431
-	xHIS_cb5nam := 721 , yHIS_cb5nam := 320
-	xHIS_SoCT := 124 , yHIS_SoCT := 348
-}
-;Màn hình tỷ lệ 1080p
-Else if (A_ScreenWidth = 1920) AND (A_ScreenHeight = 1080)
+If ( g_Resolution != "1366x768") AND ( g_Resolution != "1920x1080" )
 {
-	xHIS_PK := 120 , yHIS_PK := 429
-	xHIS_PLV := 1574 , yHIS_PLV := 36
-	xHIS_Ver := 1829 , yHIS_Ver := 1034
-	xHIS_MaBN := 124 , yHIS_MaBN := 120
-	xHIS_MuaSo := 1494 , yHIS_MuaSo := 430
-	xHIS_BNUT := 1618 , yHIS_BNUT := 431
-	xHIS_cb5nam := 721 , yHIS_cb5nam := 320
-	xHIS_SoCT := 120 , yHIS_SoCT := 345
-}
-Else {
-	MsgBox, 48, % "Oop!",% "Độ phân giải màn hình không phù hợp`n1366x768 hoặc 1920x1080"
+	MsgBox, 48, % "Oop!",% "Lỗi độ phần giải màn hình`n1366x768 hoặc 1920x1080`nHiện tại: " . g_Resolution
 	ExitApp
 }
 ;FIle
 exe := A_ScriptDir + "/Reception.exe"
+Global path_titleFolder := A_ScriptDir . "\data\Title"
 Global path_ModuleTitle := A_ScriptDir . "\data\ModuleTitle"
 Global path_Config := A_ScriptDir . "\config.ini"
+global path_PosConfig := A_ScriptDir . "\PosConfig.ini"
 Global path_Company := A_ScriptDir . "\data\Company"
 Global path_addressName := A_ScriptDir . "\data\Address"
 global path_DepartFolde := A_ScriptDir . "\data\Depart"
@@ -56,17 +37,24 @@ global arr_addcode := ["HCTDTB","DIBHTD","DILKXU","DILKPB","DILKBV","DILKXL","DI
 Global arr_addressName := fn_readSimpleFile(path_addressName)
 Global arr_Company := fn_GetArrayOfCompany()
 global arr_ModuleTitle := initArrayTitle()
-global arr_HISType := HIStypeList()
+; global arr_HISType := HIStypeList()
 Global arr_DepartGroup := fn_GetlistFile(path_DepartFolde)
 Global arr_PKList := {}
 ;KHỞI TẠO BIẾN
-Global Phongkhamid, Doituongid, SoBNcallQMS, g_DepartGID, g_Email, g_PKNhi
-Global TITLE_TN , TITLE_CC , TITLE_TNVP , EXEFILE
-;Read Config
+;Các biến Position 
+Global HIS_PK, HIS_PLV, HIS_MaBN, HIS_MuaSo, HIS_BNUT, HIS_BHYT5nam, HIS_SoCT, HIS_Ver, HIS_Email, HIS_CMND, HIS_Nguoithan
+Global xHIS_PK, xHIS_PLV, xHIS_MaBN, xHIS_MuaSo, xHIS_BNUT, xHIS_BHYT5nam, xHIS_SoCT, xHIS_Ver, xHIS_Email, xHIS_CMND, xHIS_Nguoithan
+Global yHIS_PK, yHIS_PLV, yHIS_MaBN, yHIS_MuaSo, yHIS_BNUT, yHIS_BHYT5nam, yHIS_SoCT, yHIS_Ver, yHIS_Email, yHIS_CMND, yHIS_Nguoithan
+;Các biến file config
+Global iPOS, Phongkhamid, Doituongid, SoBNcallQMS, g_DepartGID, g_Email, g_PKNhi
+Global gTITLE_TN , gTITLE_CC , gTITLE_TNVP , EXEFILE
 Global g_MaBV , SoBNcallQMS , g_HISver , g_HISType
+
+global g_nWait := 2
 ;Khởi tạo data
 initDATA()
-
+initPOS()
+initTitle()
 TN_thuong := {"Phòng Hành chính - Quầy tiếp nhận 1":1,"Phòng Hành chính - Quầy tiếp nhận 2":1}
 TN_dichvu := {"Phòng Hành chính - Quầy tiếp nhận VIP 1":1}
 TN_capcuu := {"Khoa Cấp cứu - Phòng cấp cứu":1}
@@ -84,9 +72,9 @@ Menu, FileMenu, Add,
 Menu, FileMenu, Add, % "Reload (F12)", Reload
 Menu, FileMenu, Add,
 Menu, FileMenu, Add, % "Exit", MenuExit
-Menu, SubDMMenu, Add, % "Danh mục phòng", P_Catelogy
+
 Menu, OptionMenu, Add, % "Xem Log", Log
-Menu, OptionMenu, Add, Danh mục, :SubDMMenu
+Menu, OptionMenu, Add, % "Danh mục", Catelogy
 Menu, OptionMenu, Add,
 Menu, OptionMenu, Add, % "Config", Config
 Menu, InfoMenu, Add, Thông tin, Info 
@@ -96,8 +84,8 @@ Menu, MyMenuBar, Add, &Info, :InfoMenu
 
 Gui, Menu, MyMenuBar
 
-Gui, 1:Font, s12 BOLD c000080 
-Gui, 1:Add, Tab3, x10 %Tabwidth% vmyTAB ,% "Tiếp nhận"
+Gui, 1:Font, s11 BOLD c000080 
+Gui, 1:Add, Tab3, x10 %Tabwidth% vmyTAB ,% "Tiếp nhận|."
 Gui, 1:Tab, 1
 Gui, 1:Font, s10 cNavy, Segoe UI
 Gui, 1:Font, s10 normal c000000
@@ -108,7 +96,7 @@ Gui, 1:Add, Text, x20 y120 w120 h23 +0x200, % "Phòng khám:"
 Gui, 1:Add, Text, x20 y150 w120 h23 +0x200, % "Đối tượng:"
 Gui, 1:Add, DropDownList, x100 y60 w80 vddlLoaiTN gddlLoaiTN, % "Thường||Cấp cứu"
 Gui, 1:Add, DropDownList, x255 y60 w50 vddlSoBN,
-Gui, 1:Add, DropDownList, x100 y90 w80 vddlBenhnhan gddlBenhnhan choose1, % "||Full|Trẻ em"
+Gui, 1:Add, DropDownList, x100 y90 w80 vddlBenhnhan gddlBenhnhan choose1, % "||Trẻ em"
 Gui, 1:Add, DropDownList, x100 y120 w210 vddlPhongkham gddlPhongkham choose1, % ConvertARRtoString(arr_PKList)
 Gui, 1:Add, DropDownList, x100 y150 w90 vddlDoituong gddlDoituong choose2, % ConvertARRtoString(arr_doituong1)
 Gui, 1:Add, DropDownList, x200 y150 w110 vddlTuyen, % "Đúng tuyến||Thông tuyến|Chuyển tuyến"
@@ -121,8 +109,17 @@ Gui, 1:Add, CheckBox, x100 y250 w70 h23 vcbDST, % "DST"
 Gui, 1:Add, CheckBox, x220 y250 w150 h23 vTNcddv disabled, % "Chỉ định DV"
 Gui, 1:Add, Checkbox, x100 y275 vcbThutien, % "Thu tiền"
 Gui, 1:Tab
+Gui, 1:Tab, 2
+Gui, Font, s9
+Gui, 1:Add, Checkbox, x30 y60 vcbFull gcbFull, % "Full"
+Gui, 1:Add, Checkbox, x30 y80 vcbESC, % "Email, SĐT, Công ty"
+Gui, 1:Add, Checkbox, x30 y100 vcbCMND, % "CMND"
+Gui, 1:Add, Checkbox, x30 y120 vcbNguoithan, % "Người thân"
+Gui, 1:Font
+Gui, 1:Tab
+
 Gui, 1:Add, Groupbox, x10 y308 h55 w310
-Gui, 1:Add, Button, x250 y325 w60 vbtnRunTN gbtnRunTN, % "Bắt đầu"
+Gui, 1:Add, Button, x250 y325 w60 h32 vbtnRunTN gbtnRunTN, % "Bắt đầu"
 Gui, 1:Font, s8
 Gui, 1:Add, StatusBar,, 
 SB_SetParts(90,65,50)
@@ -144,7 +141,10 @@ ctrl_BNUT := "Button3"
 ctrl_DST := "Button4"
 ctrl_CDDV := "Button5"
 ctrl_Thutien := "Button6"
-
+ctrl_Full := "Button7"
+ctrl_ESC := "Button8"
+ctrl_CMND := "Button9"
+ctrl_Nguoithan := "Button10"
 ;Gui 2 - Thông tin
 Gui, 2:Font, s11 bold cNavy
 Gui, 2:Add, Text, x20 y20, % "Thông tin"
@@ -155,26 +155,93 @@ Gui, 3:Default
 Gui, 3:Font, s14 cNavy BOLD, Segoe UI
 Gui, 3:Add, Text, x20 y20, % "CẤU HÌNH"
 Gui, 3:Font
-Gui, 3:Font, s9 cBlack, Segoe UI
-Gui, 3:Add, Text, x20 y50 h24 +0x200, % "Số BN/Gọi:"
-Gui, 3:Add, DropDownList, x90 y50 w70 v3_ddlSoBN, % "1|2|3|4|5|6|7"
-Gui, 3:Add, Text, x20 y80 h24 +0x200, % "PK cho TE:"
-Gui, 3:Add, DropDownList, x90 y80 w150 v3_ddlPKNhi, % ConvertARRtoString(arr_PKList)
-Gui, 3:Add, Text, x20 y110 h24 +0x200, % "Đuôi Email:"
-Gui, 3:Add, Edit, x90 y110 w150 +0x200 v3_edtEmail,
-Gui, 3:Add, Text, x20 y140 h24 +0x200, % "HIS:"
-Gui, 3:Add, DropDownList, x90 y140 v3_ddlHISType g3_ddlHISType, % ConvertARRtoString(arr_HISType)
-
-Gui, 3:Add, Button, x410 y270 w70 g3_btnSave, % "Lưu"
-Gui, 3:Add, Button, x490 y270 w70 g3_btnClose, % "Đóng"
+Gui, 3:Font, s10 cNavy BOLD
+Gui, 3:Add, Tab3, x20 y60 w550 h270 vmyTab, % "Chung|Pos"
 Gui, 3:Font
-Gui, 3:Font, s7
-Gui, 3:Add, ListView, x90 y170 w480 h90 v3LISTVIEW +AltSubmit -Hdr +Grid, % "1|2|3"
-	LV_ModifyCol(1, "65 Left")
-	LV_ModifyCol(2, "95 Left")
-	LV_ModifyCol(3, "310 Left")
+Gui, 3:Tab, 1
+Gui, 3:Font, s8 cBlack, Segoe UI
+Gui, 3:Add, Text, x40 y100 h24 +0x200, % "Số BN/Gọi:"
+Gui, 3:Add, DropDownList, x110 y100 w70 v3_ddlSoBN, % "1|2|3|4|5|6|7"
+Gui, 3:Add, Text, x340 y100 h24 +0x200 , % "POS:"
+Gui, 3:Add, DropDownList, x380 y100 w70 v3_ddlPOS, % "Default|Custom"
+Gui, 3:Add, Text, x40 y130 h24 +0x200, % "PK cho TE:"
+Gui, 3:Add, DropDownList, x110 y130 w150 v3_ddlPKNhi, % ConvertARRtoString(arr_PKList)
+Gui, 3:Add, Text, x40 y160 h24 +0x200, % "Đuôi Email:"
+Gui, 3:Add, Edit, x110 y160 w150 +0x200 v3_edtEmail,
 Gui, 3:Font
+Gui, 3:Tab
+Gui, 3:Tab, 2
+;Line 1
+Gui, 3:Add, Text, x40 y100 w90 h24 +0x200 v3_lb1, % "Phòng làm việc:"
+Gui, 3:Add, Text, x140 y100 w20 h24 +0x200 cBlue, % "X ="
+Gui, 3:Add, Edit, x170 y100 w40 v3_edtxPLV Disabled Right,
+Gui, 3:Add, Text, x220 y100 w20 h24 +0x200 cBlue, % "Y ="
+Gui, 3:Add, Edit, x250 y100 w40 v3_edtyPLV Disabled Right,
+Gui, 3:Add, Text, x330 y100 w60 h24 +0x200, % "Mã BN:"
+Gui, 3:Add, Text, x400 y100 w20 h24 +0x200 cBlue, % "X ="
+Gui, 3:Add, Edit, x430 y100 w40 v3_edtxMaBN Disabled Right, 
+Gui, 3:Add, Text, x480 y100 w20 h24 +0x200 cBlue, % "Y ="
+Gui, 3:Add, Edit, x510 y100 w40 v3_edtyMaBN Disabled Right, 
+;Line 2
+Gui, 3:Add, Text, x40 y125 w90 h24 +0x200, % "Số CT:"
+Gui, 3:Add, Text, x140 y125 w20 h24 +0x200 cBlue, % "X ="
+Gui, 3:Add, Edit, x170 y125 w40 v3_edtxSoCT Disabled Right, 
+Gui, 3:Add, Text, x220 y125 w20 h24 +0x200 cBlue, % "Y ="
+Gui, 3:Add, Edit, x250 y125 w40 v3_edtySoCT Disabled Right, 
+Gui, 3:Add, Text, x330 y125 w60 h24 +0x200, % "BN Ưu tiên:"
+Gui, 3:Add, Text, x400 y125 w20 h24 +0x200 cBlue, % "X ="
+Gui, 3:Add, Edit, x430 y125 w40 v3_edtxBNUT Disabled Right, 
+Gui, 3:Add, Text, x480 y125 w20 h24 +0x200 cBlue, % "Y ="
+Gui, 3:Add, Edit, x510 y125 w40 v3_edtyBNUT Disabled Right, 
+;Line 3
+Gui, 3:Add, Text, x40 y150 w90 h24 +0x200, % "BHYT 5 năm:"
+Gui, 3:Add, Text, x140 y150 w20 h24 +0x200 cBlue, % "X ="
+Gui, 3:Add, Edit, x170 y150 w40 v3_edtxBHYT5nam Disabled Right,
+Gui, 3:Add, Text, x220 y150 w20 h24 +0x200 cBlue, % "Y ="
+Gui, 3:Add, Edit, x250 y150 w40 v3_edtyBHYT5nam Disabled Right, 
+Gui, 3:Add, Text, x330 y150 w60 h24 +0x200, % "Mua sổ KB:"
+Gui, 3:Add, Text, x400 y150 w20 h24 +0x200 cBlue, % "X ="
+Gui, 3:Add, Edit, x430 y150 w40 v3_edtxMuaSOKB Disabled Right, 
+Gui, 3:Add, Text, x480 y150 w20 h24 +0x200 cBlue, % "Y ="
+Gui, 3:Add, Edit, x510 y150 w40 v3_edtyMuaSOKB Disabled Right, 
+;Line 4
+Gui, 3:Add, Text, x40 y175 w90 h24 +0x200, % "Phòng khám:"
+Gui, 3:Add, Text, x140 y175 w20 h24 +0x200 cBlue, % "X ="
+Gui, 3:Add, Edit, x170 y175 w40 v3_edtxPK Disabled Right,
+Gui, 3:Add, Text, x220 y175 w20 h24 +0x200 cBlue, % "Y ="
+Gui, 3:Add, Edit, x250 y175 w40 v3_edtyPK Disabled Right,
+Gui, 3:Add, Text, x330 y175 w60 h24 +0x200 , % "Version:"
+Gui, 3:Add, Text, x400 y175 w20 h24 +0x200 cBlue, % "X ="
+Gui, 3:Add, Edit, x430 y175 w40 v3_edtxVersion Disabled Right,  
+Gui, 3:Add, Text, x480 y175 w20 h24 +0x200 cBlue, % "Y ="
+Gui, 3:Add, Edit, x510 y175 w40 v3_edtyVersion Disabled Right,
+;Line 5
+Gui, 3:Add, Text, x40 y200 w90 h24 +0x200, % "Email:"
+Gui, 3:Add, Text, x140 y200 w20 h24 +0x200 cBlue, % "X ="
+Gui, 3:Add, Edit, x170 y200 w40 v3_edtxEmail Disabled Right,
+Gui, 3:Add, Text, x220 y200 w20 h24 +0x200 cBlue, % "Y ="
+Gui, 3:Add, Edit, x250 y200 w40 v3_edtyEmail Disabled Right,
+Gui, 3:Add, Text, x330 y200 w60 h24 +0x200 , % "CMND:"
+Gui, 3:Add, Text, x400 y200 w20 h24 +0x200 cBlue, % "X ="
+Gui, 3:Add, Edit, x430 y200 w40 v3_edtxCMND Disabled Right,
+Gui, 3:Add, Text, x480 y200 w20 h24 +0x200 cBlue, % "Y ="
+Gui, 3:Add, Edit, x510 y200 w40 v3_edtyCMND Disabled Right,
+;Line 6
+Gui, 3:Add, Text, x40 y225 w90 h24 +0x200, % "Người thân:"
+Gui, 3:Add, Text, x140 y225 w20 h24 +0x200 cBlue, % "X ="
+Gui, 3:Add, Edit, x170 y225 w40 v3_edtxNguoithan Disabled Right,
+Gui, 3:Add, Text, x220 y225 w20 h24 +0x200 cBlue, % "Y ="
+Gui, 3:Add, Edit, x250 y225 w40 v3_edtyNguoithan Disabled Right, 
+Gui, 3:Add, Groupbox, x40 y260 w510 h60
+Gui, 3:Add, Checkbox, x330 y280 h21 v3_cbfindPos g3_cbfindPos, % "PosFinder"
+Gui, 3:Add, DropDownList, x400 y280 w120 v3_ddlField, % "|Phòng làm việc|Mã BN|Số CT|BN Ưu tiên|BHYT 5 năm|Mua sổ KB|Phòng khám|Version|Email|CMND|Người thân"
+Gui, 3:Tab
+Gui, 3:Add, Button, x420 y340 w70 h32 g3_btnSave, % "Lưu"
+Gui, 3:Add, Button, x500 y340 w70 h32 g3_btnClose, % "Đóng"
+SetTimer, Update, 250
+SetTimer, Update, Off
 Gui, 3:Add, StatusBar,,
+SB_SetParts(250,20,250)
 
 ;GUI 4 - Xem log
 Gui, 4:Default ;Không có dòng này sẽ không format được listview
@@ -197,17 +264,35 @@ Gui, 4:Add, ListView, x20 y90 w660 h300 +Grid vMYLIST +AltSubmit, % "STT|Thời 
 Gui, 4:Add, StatusBar
 
 Gui, 5:Default
-Gui, 5:Font, s16 cNavy Bold
-Gui, 5:Add, Text, x20 y20 , % "DM Phòng"
+Gui, 5:Font, s16 cMaroon Bold
+Gui, 5:Add, Text, x20 y20 , % "Danh mục"
+Gui, 5:Font
+
+Gui, 5:Font, s10 bold cGray
+Gui, 5:Add,Tab3, x20 y50 w380 h260 v5_tab, % "Màn hình|Phòng"
 Gui, 5:Font
 Gui, 5:Font, s9
-Gui, 5:Add, Text, x20 y50 h24 +0x200, % "Nhóm:"
-Gui, 5:Add, DropDownList, x70 y50 w100 v5_ddlNhom g5_ddlNhom,
-Gui, 5:Add, ListView, x20 y80 w180 h200 v5LISTVIEW -Hdr +Grid +AltSubmit, % "column name"
+Gui, 5:Tab, 1
+Gui, 5:Add, DropDownList, x110 y90 w100 v5_ddlHisType g5_ddlHisType, % ConvertARRtoString(fn_GetlistFile(path_titleFolder))
+Gui, 5:Add, Text, x40 y120 w60 h21 +0x200, % "TN thường:"
+Gui, 5:ADd, Edit, x110 y120 w270 h21 v5_edtTNT +ReadOnly,
+Gui, 5:Add, Text, x40 y150 w60 h24 +0x200, % "TN CC:"
+Gui, 5:ADd, Edit, x110 y150 w270 h21 v5_edtTNCC +ReadOnly, 
+Gui, 5:Add, Text, x40 y180 w60 h24 +0x200, % "TN VP:"
+Gui, 5:ADd, Edit, x110 y180 w270 h21 v5_edtTNVP +ReadOnly,
+
+Gui, 5:Tab
+Gui, 5:Tab, 2
+Gui, 5:Add, Text, x40 y90 h24 +0x200, % "Nhóm:"
+Gui, 5:Add, DropDownList, x90 y90 w100 v5_ddlNhom g5_ddlNhom, % ConvertARRtoString(arr_DepartGroup)
+Gui, 5:Add, ListView, x200 y90 w180 h200 v5LISTVIEW -Hdr +Grid +AltSubmit, % "column name"
 	LV_ModifyCol(1, "175 Left")
-Gui, 5:Add, Button, x130 y290 w70 g5btnSave, % "Lưu"
+Gui, 5:Tab
+Gui, 5:Add, Button, x250 y315 w70 h32 g5_btnSave, % "Lưu"
+Gui, 5:Add, Button, x330 y315 w70 h32 g5_btnCLose, % "Đóng"
 Gui, 5:Add, StatusBar
 
+SB_SetText("ReadOnly")
 Return
 
 MenuExit:
@@ -217,25 +302,86 @@ GuiClose:
 	Return
 F12::
 	MsgBox, 48, Warning!, Dừng Script
+Reload:
 	Reload
 	Return
 ; Khởi tạo Data từ file
 initDATA()
 {
-	IniRead, SoBNcallQMS, %path_Config%, section1, SoBN
-	IniRead, g_MaBV, %path_Config%, section1, MaBV
-	IniRead, g_HISver, %path_Config%, section1, version
-	IniRead, g_HISType, %path_Config%, section1, HISType
-	IniRead, g_DepartGID, %path_Config%, section1, DepartID
-	IniRead, g_Email, %path_Config%, section1, Email
-	IniRead, g_PKNhi, %path_Config%, section1, PKNhi
-	
-	k := 4 * (g_HISType - 1)
-	TITLE_TN := arr_ModuleTitle[2+k][3]
-	TITLE_CC := arr_ModuleTitle[3+k][3]
-	TITLE_TNVP := arr_ModuleTitle[4+k][3]
-	
+	IniRead, iPOS, % path_Config, section1, iPOS
+	IniRead, SoBNcallQMS, % path_Config, section1, SoBN
+	IniRead, g_MaBV, % path_Config, section1, MaBV
+	IniRead, g_HISver, % path_Config, section1, version
+	IniRead, g_HISType, % path_Config, section1, HISType
+	IniRead, g_DepartGID, % path_Config, section1, DepartID
+	IniRead, g_Email, % path_Config, section1, Email
+	IniRead, g_PKNhi, % path_Config, section1, PKNhi
 	arr_PKList := fn_readSimpleFile(path_DepartFolde . "\" . arr_DepartGroup[g_DepartGID])
+	Return
+}
+initTitle()
+{
+	filename_path := A_ScriptDir . "\data\Title\" . fn_GetlistFile(path_titleFolder)[g_HISType]
+	gTITLE_TN := fn_GetTitleModule(filename_path).TN
+	gTITLE_CC := fn_GetTitleModule(filename_path).CC
+	gTITLE_TNVP := fn_GetTitleModule(filename_path).VP
+	Return
+}
+initPOS()
+{
+	IniRead, HIS_PK, % path_PosConfig , Custom, HIS_PK
+	IniRead, HIS_PLV, % path_PosConfig , Custom, HIS_PLV
+	IniRead, HIS_MaBN, % path_PosConfig , Custom, HIS_MaBN
+	IniRead, HIS_MuaSo, % path_PosConfig , Custom, HIS_MuaSo
+	IniRead, HIS_BNUT, % path_PosConfig , Custom, HIS_BNUT
+	IniRead, HIS_BHYT5nam, % path_PosConfig , Custom, HIS_BHYT5nam
+	IniRead, HIS_SoCT, % path_PosConfig , Custom, HIS_SoCT
+	IniRead, HIS_Ver, % path_PosConfig , Custom, HIS_Ver
+	IniRead, HIS_Email, % path_PosConfig , Custom, HIS_Email
+	IniRead, HIS_CMND, % path_PosConfig , Custom, HIS_CMND
+	IniRead, HIS_Nguoithan, % path_PosConfig , Custom, HIS_Nguoithan
+	;Nếu sử dụng Custom
+	If ( iPOS = 2 )
+	{
+		xHIS_PLV := fn_getXY(HIS_PLV).xPOS , yHIS_PLV := fn_getXY(HIS_PLV).yPOS
+		xHIS_MaBN := fn_getXY(HIS_MaBN).xPOS , yHIS_MaBN := fn_getXY(HIS_MaBN).yPOS
+		xHIS_BHYT5nam := fn_getXY(HIS_BHYT5nam).xPOS , yHIS_BHYT5nam := fn_getXY(HIS_BHYT5nam).yPOS
+ 		xHIS_SoCT := fn_getXY(HIS_SoCT).xPOS , yHIS_SoCT := fn_getXY(HIS_SoCT).yPOS
+		xHIS_MuaSo := fn_getXY(HIS_Muaso).xPOS , yHIS_MuaSo := fn_getXY(HIS_Muaso).yPOS
+		xHIS_BNUT := fn_getXY(HIS_BNUT).xPOS , yHIS_BNUT := fn_getXY(HIS_BNUT).yPOS
+		xHIS_PK := fn_getXY(HIS_PK).xPOS , yHIS_PK := fn_getXY(HIS_PK).yPOS
+		xHIS_Ver := fn_getXY(HIS_Ver).xPOS , yHIS_Ver := fn_getXY(HIS_Ver).yPOS
+		xHIS_Email := fn_getXY(HIS_Email).xPOS , yHIS_Email := fn_getXY(HIS_Email).yPOS
+		xHIS_CMND := fn_getXY(HIS_CMND).xPOS , yHIS_CMND := fn_getXY(HIS_CMND).yPOS
+		xHIS_Nguoithan := fn_getXY(HIS_Nguoithan).xPOS , yHIS_Nguoithan := fn_getXY(HIS_Nguoithan).yPOS
+	}
+	Else
+	{
+		If (g_Resolution = "1366x768") {
+			xHIS_PK := 120 , yHIS_PK := 429
+			xHIS_PLV := 1020 , yHIS_PLV := 36
+			xHIS_Ver := 1275 , yHIS_Ver := 722
+			xHIS_MaBN := 124 , yHIS_MaBN := 120
+			xHIS_MuaSo := 940 , yHIS_MuaSo := 430
+			xHIS_BNUT := 1064 , yHIS_BNUT := 431
+			xHIS_cb5nam := 721 , yHIS_cb5nam := 320
+			xHIS_SoCT := 124 , yHIS_SoCT := 348
+			xHIS_Email := 130 , yHIS_Email := 277
+			xHIS_CMND := 130 , yHIS_CMND := 367
+			xHIS_Nguoithan := 130 , yHIS_Nguoithan := 397
+		}
+		Else if (g_Resolution = "1920x1080")
+		{
+			xHIS_PK := 120 , yHIS_PK := 429
+			xHIS_PLV := 1574 , yHIS_PLV := 36
+			xHIS_Ver := 1829 , yHIS_Ver := 1034
+			xHIS_MaBN := 124 , yHIS_MaBN := 120
+			xHIS_MuaSo := 1494 , yHIS_MuaSo := 430
+			xHIS_BNUT := 1618 , yHIS_BNUT := 431
+			xHIS_cb5nam := 721 , yHIS_cb5nam := 320
+			xHIS_SoCT := 120 , yHIS_SoCT := 345
+		}
+	}
 	Return
 }
 initArrayTitle()
@@ -273,6 +419,8 @@ Info:
 	info =
 	(LTrim Comments
 	----------------------------------------------------
+	Version: 20220225.1
+	
 	Làm được gì?
 		- Tự động thao tác hành động tiếp nhận bệnh nhân vào Phòng khám
 	-----------------------------------------------------
@@ -286,15 +434,28 @@ Info:
 	Return
 
 ;Vào Danh mục phòng
-P_Catelogy:
+Catelogy:
 	Gui,5:Default
-	Gui, 5:Show, w220 h345, % "Phòng"
-	GuiControl, 5:, 5_ddlNhom, % "|" . ConvertARRtoString(arr_DepartGroup)
+	Gui, 5:Show, w420 h375, % "Danh mục"
+	;Xử lý TAB1
+	GuiCOntrol, 5:Choose, 5_ddlHisType, % g_HISType
+	ControlGetText, var, ComboBox1 , % "Danh mục"
+	GuiControl, 5:, 5_edtTNT, % gTITLE_TN
+	GuiControl, 5:, 5_edtTNCC, % gTITLE_CC
+	GuiControl, 5:, 5_edtTNVP, % gTITLE_TNVP
+	;Xử lý TAB2
 	GuiControl, 5:Choose, 5_ddlNhom, % g_DepartGID
 	Gui, 5:Submit, NoHide
 	Gui, 5:ListView, 5LISTVIEW
 	addIntoLV(5_ddlNhom)
 	Return
+
+	5_btnCLose:
+	5GuiClose:
+	5GuiEscape:
+		Gui, 5:Cancel
+		Gui, 1:Default
+		Return
 
 	addIntoLV(filename)
 	{
@@ -308,24 +469,52 @@ P_Catelogy:
 		}
 		Return		
 	}
+	5_ddlHisType:
+		ControlGetText, var, ComboBox1 , % "Danh mục"
+		GuiControl, 5:, 5_edtTNT, % fn_GetTitleModule(A_ScriptDir . "\data\Title\" . var).TN
+		GuiControl, 5:, 5_edtTNCC, % fn_GetTitleModule(A_ScriptDir . "\data\Title\" . var).CC
+		GuiControl, 5:, 5_edtTNVP, % fn_GetTitleModule(A_ScriptDir . "\data\Title\" . var).VP
+		Return
 
 	5_ddlNhom:
 		Gui, 5:Submit, NoHide
 		addIntoLV(5_ddlNhom)
 		Return
-
-	5btnSave:
+	
+	5_btnSave:
 		Gui, 5:Submit, NoHide
-		SB_SetText("Lưu thành công")
+		If ( 5_tab = "Màn hình")
+		{
+			ControlGetText, var, ComboBox1 , % "Danh mục"
+			idHISType := fn_indexInString(var, ConvertARRtoString(fn_GetlistFile(path_titleFolder)), "|")
+			if (idHISType != g_HISType)
+			{
+				Iniwrite, % idHISType, % path_Config , section1, HISType
+				IniRead, g_HISType, % path_Config , section1, HISType
+				initTitle()
+				SB_SetText("Lưu thành công")
+			}
+			Else
+				SB_SetText("Không có giá trị thay đổi")
+		}
+		Else
+		{
+			SB_SetText("Chức năng Lưu phòng đang xây dựng")
+		}
 		Return
+
+	
+
 
 ;GUI3 ------------------------------------------------------------------------------------
 ;Vào chức năng gui 3
 Config:
+	Gui 3:Default
 	GuiControl, 3:choose, 3_ddlSoBN, % SoBNcallQMS
 	GuiControl, 3:choose, 3_ddlHISType, % g_HISType
+	GuiControl, 3:Choose, 3_ddlPOS, % iPOS
 	GuiControl, 3:, 3_edtEmail, % g_Email
-	;msgbox, % arr_PKList.Length()
+	
 	Loop, % arr_PKList.Length()
 	{
 		i := A_Index
@@ -334,72 +523,178 @@ Config:
 			GuiControl, 3:choose, 3_ddlPKNhi, % i
 	}
 	Gui, 3:+ToolWindow
-	Gui, 3:Show, w590 h350, % "Cấu hình"
-	ControlGetText, OutputVar, ComboBox3, % "Cấu hình"
+	Gui, 3:Show, NoActivate w590 h400, % "Cấu hình"
+	ControlGetText, OutputVar, ComboBox4, % "Cấu hình"
 	Gui, 1:+Disabled
 	Gui, 3:Default
 	WinSet, AlwaysOnTop ,On, % "Cấu hình"
-	addInto3_LV(OutputVar)
+
+
+	Guicontrol, 3:Choose, 3_ddlField, 1
+	GuiControl, 3:, 3_edtxPLV, % fn_getXY(HIS_PLV).xPOS
+	GuiControl, 3:, 3_edtyPLV, % fn_getXY(HIS_PLV).yPOS
+	GuiControl, 3:, 3_edtxMaBN, % fn_getXY(HIS_MaBN).xPOS
+	GuiControl, 3:, 3_edtyMaBN, % fn_getXY(HIS_MaBN).yPOS
+	GuiControl, 3:, 3_edtxBHYT5nam, % fn_getXY(HIS_BHYT5nam).xPOS
+	GuiControl, 3:, 3_edtyBHYT5nam, % fn_getXY(HIS_BHYT5nam).yPOS
+	GuiControl, 3:, 3_edtxSoCT, % fn_getXY(HIS_SoCT).xPOS
+	GuiControl, 3:, 3_edtySoCT, % fn_getXY(HIS_SoCT).yPOS
+	GuiControl, 3:, 3_edtxMuaSoKB, % fn_getXY(HIS_Muaso).xPOS
+	GuiControl, 3:, 3_edtyMuaSoKB, % fn_getXY(HIS_Muaso).yPOS
+	GuiControl, 3:, 3_edtxBNUT, % fn_getXY(HIS_BNUT).xPOS
+	GuiControl, 3:, 3_edtyBNUT, % fn_getXY(HIS_BNUT).yPOS
+	GuiControl, 3:, 3_edtxPK, % fn_getXY(HIS_PK).xPOS
+	GuiControl, 3:, 3_edtyPK, % fn_getXY(HIS_PK).yPOS
+	GuiControl, 3:, 3_edtxVersion, % fn_getXY(HIS_Ver).xPOS
+	GuiControl, 3:, 3_edtyVersion, % fn_getXY(HIS_Ver).yPOS
+	GuiControl, 3:, 3_edtxEmail, % fn_getXY(HIS_Email).xPOS
+	GuiControl, 3:, 3_edtyEmail, % fn_getXY(HIS_Email).yPOS
+	GuiControl, 3:, 3_edtxCMND, % fn_getXY(HIS_CMND).xPOS
+	GuiControl, 3:, 3_edtyCMND, % fn_getXY(HIS_CMND).yPOS
+	GuiControl, 3:, 3_edtxNguoithan, % fn_getXY(HIS_Nguoithan).xPOS
+	GuiControl, 3:, 3_edtyNguoithan, % fn_getXY(HIS_Nguoithan).yPOS
 	Return
 
 	3_btnClose:
 	3Guiclose:
 	3GuiEscape:
 		Gui, 3:Cancel
+		Control, Uncheck,, Button2
+		SetTimer, Update, Off
 		Gui, 1:-Disabled
 		Gui, 1:Default
 		Gui, 1:Show
 		Return
 
-	addInto3_LV(istring)
-	{
-		Gui, 3:ListView, 3LISTVIEW
-		LV_Delete()
-		For Each, item in arr_ModuleTitle
-			If (item.1 = istring)
-				LV_Add("", item.1, item.2, item.3)
-		Return
-	}
-
-	HIStypeList()
-	{
-		TMPAR := []
-		For Each, item in arr_ModuleTitle
-		{
-			if (fn_isInArray(item.1, TMPAR) = 0)
-			{
-				TMPAR.Push(item.1)
-			}
-		}
-		Return, TMPAR
-	}
-	3_ddlHISType:
+	3_cbfindPos:
 		Gui, 3:Submit, NoHide
-		addInto3_LV(3_ddlHISType)
+		If (3_cbfindPos) {
+			SetTimer, Update, On
+			SB_SetText("Giữ Ctrl để Pause",1)
+		}	
+		Else {
+			SetTimer, Update, Off
+			SB_SetText("",1)
+		}
 		Return
-	
-		
+
+	Update:
+		Gui, 3:Default
+		CoordMode, Mouse, Relative
+		MouseGetPos, , , msWin, msCtrl
+		WinGetTitle, WinTitle, ahk_id %msWin%
+		If (WinTitle = "Cấu hình") Or (WinTitle = "")
+			Return
+		ControlGetText, ctrlName, %msCtrl%, % WinTitle
+		SB_SetText(WinTitle, 1)
+		SB_SetText(ctrlName, 3)
+		ControlGetPos, ctrlX, ctrlY, , , %msCtrl%, % WinTitle
+		ControlGetText, var, ComboBox4, % "Cấu hình"
+		Switch, var
+		{
+			Case "Phòng làm việc":
+				GuiControl, 3:, 3_edtxPLV, % ctrlX
+				GuiControl, 3:, 3_edtyPLV, % ctrlY
+			Case "Mã BN":
+				GuiControl, 3:, 3_edtxMaBN, % ctrlX
+				GuiControl, 3:, 3_edtyMabn, % ctrlY
+			Case "Số CT":
+				GuiControl, 3:, 3_edtxSoCT, % ctrlX
+				GuiControl, 3:, 3_edtySoCT, % ctrlY
+			Case "BN Ưu tiên":
+				GuiControl, 3:, 3_edtxBNUT, % ctrlX
+				GuiControl, 3:, 3_edtyBNUT, % ctrlY
+			Case "BHYT 5 năm":
+				GuiControl, 3:, 3_edtxBHYT5Nam, % ctrlX
+				GuiControl, 3:, 3_edtyBHYT5Nam, % ctrlY
+			Case "Mua sổ KB":
+				GuiControl, 3:, 3_edtxMuaSoKB, % ctrlX
+				GuiControl, 3:, 3_edtyMuaSoKB, % ctrlY
+			Case "Phòng khám":
+				GuiControl, 3:, 3_edtxPK, % ctrlX
+				GuiControl, 3:, 3_edtyPK, % ctrlY
+			Case "Version":
+				GuiControl, 3:, 3_edtxVersion, % ctrlX
+				GuiControl, 3:, 3_edtyVersion, % ctrlY
+			Case "Email":
+				GuiControl, 3:, 3_edtxEmail, % ctrlX
+				GuiControl, 3:, 3_edtyEmail, % ctrlY
+			Case "CMND":
+				GuiControl, 3:, 3_edtxCMND, % ctrlX
+				GuiControl, 3:, 3_edtyCMND, % ctrlY
+			Case "Người thân":
+				GuiControl, 3:, 3_edtxNguoithan, % ctrlX
+				GuiControl, 3:, 3_edtyNguoithan, % ctrlY
+		}
 		Return
+
+		~*Ctrl::
+			If (3_cbfindPos)
+				SetTimer, Update, Off
+			Return
+
+		~*Ctrl up::
+			If (3_cbfindPos)
+				SetTimer, Update, On
+			return
+
 	3_btnSave:
 		Gui, 3:Submit, NoHide
-		new_SoBNcallQMS := 3_ddlSoBN
-		new_HISType := fn_indexInArray(3_ddlHISType, arr_HISType)
-		new_Email := Trim(Bodau(3_edtEmail))
-		GuiControl, 3:, 3_edtEmail, % new_Email
-		If (new_Email = "")
+		If (myTab = "Chung")
 		{
-			SB_SetText("Email không được để trống")
-			ControlFocus, Edit1, % "Cấu hình"
-			Return
+			new_SoBNcallQMS := 3_ddlSoBN
+			new_HISType := fn_indexInArray(3_ddlHISType, arr_HISType)
+			new_Email := Trim(Bodau(3_edtEmail))
+			GuiControl, 3:, 3_edtEmail, % new_Email
+			If ( 3_ddlPOS = "Default")
+				tempPOS := 1
+			Else
+				tempPOS := 2
+			If (new_Email = "")
+			{
+				SB_SetText("Email không được để trống")
+				ControlFocus, Edit1, % "Cấu hình"
+				Return
+			}
+			IniWrite, % new_Email, %path_Config%, section1, Email
+			IniWrite, % new_SoBNcallQMS, %path_Config%, section1, SoBN
+			IniWrite, % Bodau(3_ddlPKNhi), %path_Config%, section1, PKNhi
+			IniWrite, % tempPOS, %path_Config%, section1, iPOS
+			SB_SetText("Lưu thành công")
+			; ;Load lại config
+			initDATA()
+			initSOBNTN(new_SoBNcallQMS)
 		}
-		IniWrite, % new_Email, %path_Config%, section1, Email
-		IniWrite, % new_SoBNcallQMS, %path_Config%, section1, SoBN
-		IniWrite, % new_HISType, %path_Config%, section1, HISType
-		IniWrite, % Bodau(3_ddlPKNhi), %path_Config%, section1, PKNhi
-		SB_SetText("Lưu thành công")
-		; ;Load lại config
-		initDATA()
-		initSOBNTN(new_SoBNcallQMS)
+		Else if (myTab = "Pos")
+		{
+			newPhongLV := 3_edtxPLV . "," . 3_edtyPLV
+			newMaBN := 3_edtxMaBN . "," . 3_edtyMaBN
+			newSoCT := 3_edtxSoCT . "," . 3_edtySoCT
+			newBNUT := 3_edtxBNUT . "," . 3_edtyBNUT
+			newBHYT5Nam := 3_edtxBHYT5Nam . "," . 3_edtyBHYT5Nam
+			newMuaSoKB := 3_edtxMuaSoKB . "," . 3_edtyMuaSoKB
+			newPK := 3_edtxPK . "," . 3_edtyPK
+			newVersion := 3_edtxVersion . "," . 3_edtyVersion
+			newEmail := 3_edtxEmail . "," . 3_edtyEmail
+			newCMND := 3_edtxCMND . "," . 3_edtyCMND
+			newNguoithan := 3_edtxNguoithan . "," . 3_edtyNguoithan
+
+			;Lưu vào file Config
+			IniWrite, % newPK, % path_PosConfig , Custom, HIS_PK
+			IniWrite, % newPhongLV, % path_PosConfig , Custom, HIS_PLV
+			IniWrite, % newMaBN, % path_PosConfig , Custom, HIS_MaBN
+			IniWrite, % newMuaSoKB, % path_PosConfig , Custom, HIS_MuaSo
+			IniWrite, % newBNUT, % path_PosConfig , Custom, HIS_BNUT
+			IniWrite, % newBHYT5Nam, % path_PosConfig , Custom, HIS_BHYT5nam
+			IniWrite, % newSoCT, % path_PosConfig , Custom, HIS_SoCT
+			IniWrite, % newVersion, % path_PosConfig , Custom, HIS_Ver
+			IniWrite, % newEmail, % path_PosConfig , Custom, HIS_Email
+			IniWrite, % newCMND, % path_PosConfig , Custom, HIS_CMND
+			IniWrite, % newNguoithan, % path_PosConfig , Custom, HIS_Nguoithan
+			SB_SetText("Lưu thành công")
+		}
+		Else
+			SB_SetText("Có lỗi khi lưu")
 		Return
 	
 
@@ -472,9 +767,7 @@ LOG:
 		Readlog(4_date)
 		Return
 ;///////////////////////////////////////////////////////////////////////////
-Reload:
-	Reload
-	Return
+
 ;;
 ;KẾT THÚC XỬ LÝ GUI
 ;CLOCKTIME
@@ -512,17 +805,32 @@ ddlBenhnhan:
 	Gui, 1:Submit, NoHide
 	If (ddlBenhnhan = "Trẻ em")
 	{
+		Control, Check,, % ctrl_Nguoithan
+		Control, UnCheck,, % ctrl_Full
+		Control, UnCheck,, % ctrl_CMND
+		Control, UnCheck,, % ctrl_ESC
+		GuiControl, Disable ,cbFull
+		GuiControl, Disable ,% ctrl_CMND
+		GuiControl, Disable ,% ctrl_ESC
+		GuiControl, Disable ,% ctrl_Nguoithan
 		Loop, % arr_PKList.Length()
 		{
 			i := A_Index
 			tmpString := arr_PKList[i]
 			If (Lowercase(bodau(tmpString)) = g_PKNhi)
-				GuiControl, 1:Choose, ddlPhongKham, % i
+				GuiControl, Choose, ddlPhongKham, % i
 		}
 	}
 	Else
+	{
+		Control, UnCheck,, % ctrl_Nguoithan
+		GuiControl, Enable ,cbFull
+		GuiControl, Enable ,% ctrl_CMND
+		GuiControl, Enable ,% ctrl_ESC
+		GuiControl, Enable ,% ctrl_Nguoithan
 		GuiControl, 1:Choose, ddlPhongKham, 1
-	
+	}
+		
 	Return
 ;Xử lý kho chọn Dropdownlist Đối tượng
 ddlDoituong:
@@ -597,6 +905,21 @@ ddlPhongkham:
 	}
 	Return
 
+cbFull:
+	Gui, 1:Submit, NoHide
+	If (cbFull) {
+		Control, Check,, % ctrl_ESC
+		Control, Check,, % ctrl_CMND
+		Control, Check,, % ctrl_Nguoithan
+	}
+	Else {
+		Control, UnCheck,, % ctrl_ESC
+		Control, UnCheck,, % ctrl_CMND
+		Control, UnCheck,, % ctrl_Nguoithan
+	}
+	Return
+
+
 initSOBNTN(n)
 {
 	ds = 1
@@ -615,25 +938,29 @@ btnRunTN:
 	TimeGetPatient=NONE
 	;Kiểm tra Màn hình tiếp nhận đã mở hay chưa?
 	If (ddlLoaiTN = "Cấp cứu") {
-		IfWinNotExist,	% TITLE_CC
+		IfWinNotExist,	% gTITLE_CC
 		{
-			MsgBox,48, % "Oop!",% "Chưa mở `n" . TITLE_CC
+			MsgBox,48, % "Oop!",% "Chưa mở `n" . gTITLE_CC
 			Return
 		}
-		title_tiepnhan := TITLE_CC
+		title_tiepnhan := gTITLE_CC
 	}
 	Else if (ddlLoaiTN = "Thường") {
-		IfWinNotExist, % TITLE_TN
+		IfWinNotExist, % gTITLE_TN
 		{
-			MsgBox, 48, % "Oop!",% "Chưa mở `n" . TITLE_TN
+			MsgBox, 48, % "Oop!",% "Chưa mở `n" . gTITLE_TN
 			Return
 		}
-		title_tiepnhan := TITLE_TN
+		title_tiepnhan := gTITLE_TN
 	}
 	Sleep 300
 	;Kiểm tra quầy tiếp nhận
 	WinActivate, %title_tiepnhan%
 	Sleep 100
+	;Khởi tạo các control trong form thông tin BN
+	ClassNN_Email := ""
+	HISctrl_CNMD := ""
+	ClassNN_Nguoithan := ""
 	;Lấy COntrol của Tên phòng và mã BN
 	iCheck := 0
 	WinGet, ilist, ControlList, %title_tiepnhan%
@@ -752,7 +1079,7 @@ btnRunTN:
 	;Thời gian bắt đầu chạy Script
 	Script_start := A_TickCount
 	;Chọn phòng khám, (tiếp nhận cấp cứu sẽ không chọn)
-	If (title_tiepnhan = TITLE_TN) {
+	If (title_tiepnhan = gTITLE_TN) {
 		Sleep 300
 		ControlClick, %ClassNN_PK%, %title_tiepnhan%
 		ddl_choose(ddlPhongkham, 300)
@@ -779,15 +1106,12 @@ btnRunTN:
 			time_goiso := (Endtime-Starttime-200)
 			}
 		}
-		Sleep 500
-		If (A_Index = 1) ;Mục đích để check giữa việc nhân button và sử dụng phím tắt
-			ControlClick, %HISctrl_Nhapmoi%, %title_tiepnhan%
-		Else
-			Send ^{n}
-		Sleep 500
+		Sleep 300
+		ControlClick, %HISctrl_Nhapmoi%, %title_tiepnhan%
+		Sleep 300
 		;Nhâp và tiếp nhậN BN
 		FormatTime, randhoten, , HHmmss
-		Send % "Nguyen " . randhoten
+		Send % "N " . randhoten
 		;Sleep 500
 		Send {tab}
 		Partient_Form := "THÔNG TIN BỆNH NHÂN"
@@ -812,15 +1136,10 @@ btnRunTN:
 			bday := RandomDate(GETyearNyearAGO(90) ,GETyearNyearAGO(6),"ddMMyyyy") ;Tạo ngày sinh từ 6T -> 100T
 		edit_choose(bday, 300)
 		;CHỌN GIỚI TÍNH
-		If (Partient_name.lot = "Thị" Or Partient_name.lot = "Văn")
-			Send {Tab}
-		Else {
-			Loop, %iGT% {
-				Send {Down}
-				Sleep 300
-			}
-			Send {Tab}
-		}
+		If ( iGT = 1)
+			edit_choose("Nam", 200)
+		Else
+			edit_choose("Nu", 200)
 		;HÀM TÍNH TUỔI
 		yearold := fn_tinhtuoi(bday)
 		Job := ""
@@ -846,39 +1165,38 @@ btnRunTN:
 		}
 		Sleep 300
 		;Random tên địa chỉ
-		edit_choose(random_choice(arr_addressName), 300)
+		edit_choose(fn_randChoice(arr_addressName), 300)
 		;RANDOM CODE ĐỊA CHỊ
-		edit_choose(random_choice(arr_addcode),300)
+		edit_choose(fn_randChoice(arr_addcode),300)
 		IfWinActive, % "Thông báo"
 			Send {Enter}
-		If (ddlBenhnhan = "Trẻ em") {
-			WinGet, ilist, ControlList, % Partient_Form
-			Loop, Parse, ilist, `n`r
+		If ( cbESC != 0 ) OR ( cbEmail != 0 ) OR ( cbNguoithan != 0 )
+		{
+			If (ClassNN_Email = "")
 			{
-				ControlGetPos, x, y, , , %A_LoopField%, % Partient_Form
-				If (x = 130 and y = 397) {
-					ClassNN_Nguoithan := A_LoopField
-					Break
+				WinGet, ilist, ControlList, % Partient_Form
+				Loop, Parse, ilist, `n`r
+				{
+					ControlGetPos, x, y, , , %A_LoopField%, % Partient_Form
+					If (x = xHIS_Email and y = yHIS_Email)
+						ClassNN_Email := A_LoopField
+					If (x = xHIS_CMND and y = yHIS_CMND)
+						ClassNN_CMND := A_LoopField
+					If (x = xHIS_Nguoithan and y = yHIS_Nguoithan)
+						ClassNN_Nguoithan := A_LoopField
 				}
 			}
-			ControlFocus, % ClassNN_Nguoithan, % Partient_Form
-			Sleep, 100
-			edit_choose(fn_CreatePersonName(2).hovaten, 200)
-			phonenumber := "09" . RandomNumRange(8)
-			edit_choose(phonenumber, 200)
-			edit_choose("Mẹ", 200)
 		}
-		If (ddlBenhnhan = "Full") {
-			WinGet, ilist, ControlList, % Partient_Form
-			Loop, Parse, ilist, `n`r
+		;Nhập thông tin Email, SĐT, công ty
+		If cbESC
+		{
+			If ( ClassNN_Email = "")
 			{
-				ControlGetPos, x, y, , , %A_LoopField%, % Partient_Form
-				If (x = 130 and y = 277) {
-					ClassNN_Email := A_LoopField
-					Break
-				}
+				Msgbox, 16, % "Oop!", % "Có lỗi"
+				Return
 			}
 			ControlFocus, % ClassNN_Email, % Partient_Form
+			Sleep, 300
 			Email := fn_CreateEmail(Partient_name.Ho, Partient_name.Lot, Partient_name.Ten, bday)
 			edit_choose(Email, 200)
 			Sdt := "09" . RandomNumRange(8)
@@ -888,10 +1206,11 @@ btnRunTN:
 			edit_choose(CPN[r][1], 200)
 			edit_choose(CPN[r][2], 200)
 			edit_choose(CPN[r][3], 200)
-			;Nhập CMND
-			;CHỉ nhập khi BN > 18T
-			If (yearold >= 18)
-			{
+		}
+		;Nhập thông tin CMND
+		If cbCMND {
+			If (yearold >= 18) {
+				ControlFocus, % ClassNN_CMND, % Partient_Form
 				CMND := RandomNumRange(9)
 				CMND_date := RandomDate(GETyearNyearAGO(16) ,GETyearNyearAGO(18) ,"ddMMyyyy")
 				CMND_location := "CA Tỉnh"
@@ -899,6 +1218,19 @@ btnRunTN:
 				edit_choose(CMND_date, 200)
 				edit_choose(CMND_location, 200)
 			}
+		}
+		;Nhập thông tin người thân
+		If cbNguoithan
+		{
+			ControlFocus, % ClassNN_Nguoithan, % Partient_Form
+			Sleep, 100
+			relativePeople := fn_CreatePersonName(2).hovaten
+			edit_choose(relativePeople, 200)
+			phonenumber := "09" . RandomNumRange(8)
+			edit_choose(phonenumber, 200)
+			edit_choose("Mẹ", 200)
+			add_relativePeople := "Địa chỉ của " . relativePeople
+			edit_choose(add_relativePeople, 200)
 		}
 		Send ^{s}
 		Startime := A_TickCount
@@ -910,16 +1242,23 @@ btnRunTN:
 		Sleep 200
 		WinWaitActive, % title_tiepnhan
 		MaBN := ""
-		Loop
+		Loop, 10
 		{
+			Sleep, 100
 			ControlGetText, MaBN, %ClassNN_MaBN%, %title_tiepnhan%
 			If (MaBN != "")
 				Break
 		}
 		If (ddlDoituong != "Thu phí") 
 		{
+			Sleep, 300
 			Send {F2}
-			Waitform("THÔNG TIN THẺ BHYT")
+			WinWaitActive, % "THÔNG TIN THẺ BHYT" ,, 2
+			If ErrorLevel
+			{
+				Msgbox, 48, % "oop", % "Có lỗi khi vào màn hình THÔNG TIN THẺ BHYT"
+				Return
+			}
 			Sleep 200
 			WinGet, ilist, ControlList, % "THÔNG TIN THẺ BHYT"
 			
@@ -957,7 +1296,7 @@ btnRunTN:
 				edit_choose(bhyt_from,300)
 				edit_choose(bhyt_to,300)
 				Send ^{s}
-				WinWaitActive, Thông báo,, 2
+				WinWaitActive, % "Thông báo",, 2
 				If ErrorLevel
 				{
 					Send {Enter}
@@ -1076,14 +1415,14 @@ btnRunTN:
 		If ( cbThutien )
 		{
 			ControlClick, % HISctrl_Thutien, % title_tiepnhan
-			WinWaitActive, % TITLE_TNVP
+			WinWaitActive, % gTITLE_TNVP
 			Loop,
 			{
-				WinGet, ilist, ControlList, % TITLE_TNVP
+				WinGet, ilist, ControlList, % gTITLE_TNVP
 				VPbtnThutien := ""
 				Loop, Parse, ilist, `n`r
 				{
-					ControlGetText, OutputVar, %A_LoopField%, % TITLE_TNVP
+					ControlGetText, OutputVar, %A_LoopField%, % gTITLE_TNVP
 					If (OutputVar = "Thu tiền") {
 						VPbtnThutien := A_LoopField
 						Break
@@ -1094,12 +1433,12 @@ btnRunTN:
 			}
 			Loop 
 			{
-				Controlget, var, Enabled,, %VPbtnThutien%, %TITLE_TNVP%
+				Controlget, var, Enabled,, %VPbtnThutien%, %gTITLE_TNVP%
 				If (var=1)
 					Break
 			}
 			Sleep 300
-			ControlClick, % VPbtnThutien, % TITLE_TNVP
+			ControlClick, % VPbtnThutien, % gTITLE_TNVP
 			WinWaitActive, % "THU TIỀN"
 			Send ^{s}
 			WinWaitActive, % "Thông báo"
@@ -1107,7 +1446,6 @@ btnRunTN:
 			Sleep 200
 			Send ^{t}
 			WinWaitActive, % title_tiepnhan
-			
 		}
 
 		;Nhập dấu sinh tồn
@@ -1126,7 +1464,6 @@ btnRunTN:
 			Send {Enter}
 			WinWaitActive, % "Thông báo"
 			Send {Enter}
-
 		}
 		;END LOOP
 	}
@@ -1196,9 +1533,9 @@ fn_isInArray(string, array)
 	}
 	Return, False
 }
+;Trả về index của giá trị trong mảng
 fn_indexInArray(string, array)
 {
-	
 	L := array.Length()
 	Loop, % L
 	{
@@ -1207,6 +1544,17 @@ fn_indexInArray(string, array)
 			Return, i
 	}
 	Return, 1
+}
+;Trả về index của giá trị trong string
+fn_indexInString(needle, string, seperate)
+{
+	Loop, Parse, string, % "`" . seperate
+	{
+		If (needle = A_LoopField)
+			Return, A_Index
+	}
+	Return, 0
+
 }
 ;Hàm get tất cả file trong folder
 fn_GetlistFile(path)
@@ -1221,6 +1569,21 @@ fn_GetlistFile(path)
 		Return, tmpAR
 	}
 
+;Specical Function
+;Tách x,y từ dữ liệu (XY=123,36 =>x=123 y=36)
+fn_getXY(XY)
+{
+	Loop, parse, XY, `,
+	{
+		If (A_index = 1)
+			Str1 := A_LoopField
+		Else if (A_index = 2)
+			Str2 := A_LoopField
+		Else
+			Continue
+	}
+	Return {xPOS:Str1, yPOS:Str2}
+}
 
 ;Sử dụng cho các TH chọn dữ liệu dạng DropDownList
 ddl_choose(mydata, ctime)      
@@ -1243,12 +1606,13 @@ edit_choose(mydata, ctime)
 	Send {tab}
 	Sleep %ctime%
 }
-
+;Hàm wait form
 Waitform(form_name) {
-	WinWaitActive, %form_name%,, 10
+	WinWaitActive, % form_name,, % g_nWait
     If ErrorLevel
     {
-        Msgbox, 16, Oop!, Không vào được form %form_name%
+        Msgbox, 16, % "Oop!", % "Không vào được form " . form_name
+		Return
         exit
     }
 }
@@ -1298,20 +1662,20 @@ fn_CreatePersonName(Gend)
 	lastname_male_arr := ["An","Anh","Bảo","Bình","Biên","Công","Chung","Cường","Danh","Du","Duy","Dũng","Dương","Đường","Đạt","Được","Đăng","Định","Đức","Hoài","Hoàng","Hải","Hùng","Huy","Hậu","Huấn","Hưng","Kiên","Linh","Lương","Lăng","Ly","Long","Mạnh","Minh","Mẫn","Nam","Năm","Nghị","Phúc","Phước","Phong","Phi","Quyền","Quãng","Tư","Tứ","Tuấn","Tùng","Tấn","Tiến","Toàn","Thịnh","Thông","Thương","Tài","Thắng","Thanh","Vũ","Vy","Văn"]
 	lastname_female_arr := ["Ánh","Bống","Chi","Chung","Châu","Dung","Dương","Duyên","Hằng","Hoài","Hương","Hai","Hạnh","Hồng","Hoa","Kiều","Linh","Lan","Ly","Liễu","Mai","Mơ","Nhung","Nhi","Như","Nga","Ngân","Phượng","Phương","Quyên ","Tình","Tư","Thương","Thảo","Thơ","Thơm","Thi","Thúy","Thủy","Thanh","Uyên","Yến","Vân Anh","Bảo Anh","Kiều Anh","Ngọc Anh","Trâm Anh","Trà Long","Trà My","Gia Mỹ","Kiều Tiên","Thúy Kiều ","Thúy Vân","Vân Kiều"]
 	;--------------------------------------
-    F_name := random_choice(firstname_arr)
+    F_name := fn_randChoice(firstname_arr)
     If (Gend = 1) {
-        M_name := random_choice(midname_male_arr)
-        L_Name := random_choice(lastname_male_arr)
+        M_name := fn_randChoice(midname_male_arr)
+        L_Name := fn_randChoice(lastname_male_arr)
     }
     Else {
-        M_name := random_choice(midname_female_arr)
-        L_Name := random_choice(lastname_female_arr)
+        M_name := fn_randChoice(midname_female_arr)
+        L_Name := fn_randChoice(lastname_female_arr)
     }
     Full_name := F_name . " " . M_name . " " . L_Name
     Return, {HovaTen:Full_name, Ho:F_name, Lot:M_name, Ten:L_Name}
 }
 ; Trả về 1 giá trị ngẫu nhiên trong mảng
-random_choice(arr)
+fn_randChoice(arr)
 {
 	arr_len := arr.Length()
 	Random, r, 1, % arr_len
@@ -1337,11 +1701,11 @@ fn_CreateBHYTCode(BH_header, tuyen, MH)
 	}
 	Else
 	{
-		maBV := random_choice(code)
+		maBV := fn_randChoice(code)
 		maTinh := SubStr(maBV, 1, 2)
 	}
 	If (BH_header = "")
-		bhyt := random_choice(ar_BHYT) . maTinh . RandomNumRange(10)
+		bhyt := fn_randChoice(ar_BHYT) . maTinh . RandomNumRange(10)
 	Else
 		bhyt := BH_header . maTinh . RandomNumRange(10)
 	FromDate := RandomDate(GETyearNyearAGO(1) ,GETyearNyearAGO(0) ,"ddMMyyyy")
@@ -1389,29 +1753,23 @@ fn_readSimpleFile(path)
 	}
 	Return, tmpAR
 }
-
-fn_GetTitleModule(titletype)
+;Gán tiêu đề các màn hình làm việc
+fn_GetTitleModule(file)
 {
-	resultTitle := []
-	Loop
+	Loop,
 	{
-		i := A_index
-		FileReadLine, var, % path_ModuleTitle, % i
+		i := A_Index
+		FileReadLine, var, % file, % i
 		If ErrorLevel
-			Return
-		Loop, Parse, var, CSV
-		{
-			j := A_Index
-			If ( j = 1 ) AND ( A_LoopField = titletype)
-				Math = True
-			If (Math)
-				If ( j != 1)
-					resultTitle.Push(A_LoopField)
-		}
-		If (resultTitle.Length() != 0)
-			Return, resultTitle
+			Break
+		if ( i = 1)
+			str1 := var
+		else if ( i = 2)
+			str2 := var
+		else if ( i =3 )
+			str3 := var
 	}
-	Return
+	Return {TN:str1, CC:str2, VP:str3}
 }
 ;Hàm tạo Email theo Họ và tên
 fn_CreateEmail(Ho,Lot,Ten,bday)
